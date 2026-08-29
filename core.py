@@ -1,44 +1,64 @@
 import time
-import random
+import threading
 import pyautogui
 
-pyautogui.FAILSAFE = False
+class AutoClickerCore:
+    def __init__(self, clicks_per_second: float = 10.0):
+        self.clicks_per_second = clicks_per_second
+        self._running = False
+        self._thread = None
+        # Performance optimization: pre-calculate interval to avoid repeated division
+        self._click_interval = 1.0 / clicks_per_second
+        # Optimization: disable pyautogui's built-in pause for higher click rates
+        pyautogui.PAUSE = 0
 
-def get_random_delay(min_seconds: float = 0.1, max_seconds: float = 1.0) -> float:
-    """Generate a random delay between the given range."""
-    return random.uniform(min_seconds, max_seconds)
+    def start(self, position_x: int, position_y: int, max_clicks: int = 0):
+        """Start the optimized clicking loop in a separate thread."""
+        if self._running:
+            return
+        self._running = True
+        self._thread = threading.Thread(
+            target=self._click_loop,
+            args=(position_x, position_y, max_clicks),
+            daemon=True
+        )
+        self._thread.start()
 
-def perform_click(x: int, y: int, clicks: int = 1, interval: float = 0.0, button: str = 'left') -> None:
-    """Perform mouse click at given position with options."""
-    pyautogui.click(x=x, y=y, clicks=clicks, interval=interval, button=button)
+    def _click_loop(self, x: int, y: int, max_clicks: int):
+        clicks_done = 0
+        # Use perf_counter for high precision timing
+        next_click_time = time.perf_counter()
+        while self._running:
+            current_time = time.perf_counter()
+            if current_time >= next_click_time:
+                # Perform the click
+                pyautogui.moveTo(x, y)
+                pyautogui.click()
+                clicks_done += 1
+                if max_clicks > 0 and clicks_done >= max_clicks:
+                    self._running = False
+                    break
+                # Schedule next click
+                next_click_time += self._click_interval
+            else:
+                # Calculate remaining time for sleep to reduce CPU usage
+                remaining = next_click_time - current_time
+                if remaining > 0.001:
+                    time.sleep(remaining * 0.9)  # sleep 90% to allow precise timing
 
-def move_mouse(x: int, y: int, duration: float = 0.2) -> None:
-    """Move the mouse to the target coordinates smoothly."""
-    pyautogui.moveTo(x, y, duration=duration)
+    def stop(self):
+        """Stop the clicking loop."""
+        self._running = False
+        if self._thread is not None and self._thread.is_alive():
+            self._thread.join(timeout=2.0)
 
-def click_in_area(left: int, top: int, width: int, height: int, button: str = 'left') -> None:
-    """Click at random point within rectangular area."""
-    rand_x = left + random.randint(0, width)
-    rand_y = top + random.randint(0, height)
-    perform_click(rand_x, rand_y, button=button)
+    def update_rate(self, new_cps: float):
+        if new_cps > 0:
+            self.clicks_per_second = new_cps
+            self._click_interval = 1.0 / new_cps
 
-def delayed_random_click(x: int, y: int, min_delay: float = 0.5, max_delay: float = 2.0) -> None:
-    """Wait random time then click at position."""
-    delay = get_random_delay(min_delay, max_delay)
-    time.sleep(delay)
-    perform_click(x, y)
-
-def hold_mouse_button(x: int, y: int, duration: float = 1.0, button: str = 'left') -> None:
-    """Press and hold mouse button for duration then release."""
-    pyautogui.mouseDown(x=x, y=y, button=button)
-    time.sleep(duration)
-    pyautogui.mouseUp(x=x, y=y, button=button)
-
-def get_screen_size() -> tuple:
-    """Return tuple of screen width and height."""
-    return pyautogui.size()
-
-def check_coordinates(x: int, y: int) -> bool:
-    """Verify if x and y are valid on current screen."""
-    w, h = get_screen_size()
-    return 0 <= x < w and 0 <= y < h
+if __name__ == "__main__":
+    core = AutoClickerCore(20.0)
+    core.start(100, 100, 50)
+    time.sleep(3)
+    core.stop()
