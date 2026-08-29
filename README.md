@@ -1,40 +1,39 @@
 # auto-clicker-29
 
-An efficient and customizable autoclicker built in Python designed to automate repetitive clicking tasks. Perfect for gamers, testers, or anyone who needs to perform mouse clicks without manual effort.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+auto-clicker-29 is a lightweight Python tool for automating mouse clicks with high timing precision. It is designed for repetitive tasks, UI testing, and controlled automation scenarios.
 
 ## Features
-- **Custom Click Locations**: Specify exact coordinates for clicking, allowing targeted interactions with applications.
-- **Adjustable Click Speed**: Easily set the delay between clicks in milliseconds to suit different needs and applications.
-- **User-Friendly Interface**: Simple command-line interface for starting, stopping, and configuring the autoclicker without extensive setup.
-- **Hotkey Support**: Quickly start or stop the autoclicker with designated keyboard shortcuts for seamless operation.
+- Adjustable click intervals with 1ms precision and support for fractional values
+- Configurable mouse button selection (left, right, middle)
+- Global hotkeys for start, stop, and exit without interrupting the process
+- Optional randomized delays between clicks to simulate natural input patterns
 
 ## Installation
 
-To install `auto-clicker-29`, please ensure you have Python 3.7 or higher installed. Then, run the following commands in your terminal:
-
 ```bash
-git clone https://github.com/yourusername/auto-clicker-29.git
+git clone https://github.com/Developer/auto-clicker-29.git
 cd auto-clicker-29
 pip install -r requirements.txt
 ```
 
-## Basic Usage Example
+## Usage
 
-After installation, you can start the autoclicker using the command line. Here’s a quick example to get you started:
+Run with default settings (10 clicks per second at current cursor position):
 
 ```bash
-python autoclicker.py --x 100 --y 200 --delay 500 --duration 10
+python main.py
 ```
 
-In this command:
-- `--x` and `--y` set the screen coordinates where clicks will occur.
-- `--delay` determines the time interval between clicks (in milliseconds).
-- `--duration` specifies how long the autoclicking will run in seconds.
+Customize via command line:
 
-For additional commands and settings, please refer to the documentation within the repository.
+```bash
+python main.py --interval 0.05 --button right --hotkey f8
+```
+
+Press the configured hotkey to toggle clicking. The session counter displays total clicks performed.
 
 ## License
 
-![MIT License](https://img.shields.io/badge/License-MIT-green.svg)
-
-This project is licensed under the MIT License. See the LICENSE file for more details.
+This project is licensed under the MIT License.
