@@ -1,50 +1,47 @@
 import json
 import os
+from typing import Any, Dict, List, Optional, Tuple
 
-DEFAULT_CONFIG = {
-    "interval": 0.1,  # Time between clicks in seconds
-    "button": "left",  # Mouse button: left, right, or middle
-    "clicks_per_action": 1,  # Clicks per action
-    "repeat": True,  # Whether to repeat indefinitely
-    "repeat_count": 100,  # Number of repetitions if not infinite
-    "start_hotkey": "f8",  # Hotkey to start clicking
-    "stop_hotkey": "f9",  # Hotkey to stop clicking
-    "randomize_interval": False,  # Use random intervals
-    "random_min": 0.05,  # Min random interval
-    "random_max": 0.2,  # Max random interval
-}
+def is_valid_interval(interval: float) -> bool:
+    """Validate click interval is between 1ms and 60s."""
+    return 0.001 <= interval <= 60.0
 
-def load_config(config_file: str = "config.json"):
-    """Load config from JSON file with defaults for missing keys."""
-    config = DEFAULT_CONFIG.copy()
-    
-    if os.path.exists(config_file):
-        try:
-            with open(config_file, "r") as f:
-                file_config = json.load(f)
-            # Merge file config into defaults
-            for key, value in file_config.items():
-                if key in DEFAULT_CONFIG:
-                    config[key] = value
-        except json.JSONDecodeError:
-            print("Invalid JSON in config file. Using defaults.")
-        except IOError as e:
-            print(f"Could not read config file: {e}. Using defaults.")
-    
-    return config
+def is_valid_position(x: float, y: float) -> bool:
+    """Check if screen position is reasonable."""
+    return 0 <= x <= 1920 and 0 <= y <= 1080
 
-def save_default_config(config_file: str = "config.json"):
-    """Save the default configuration to a file."""
-    with open(config_file, "w") as f:
-        json.dump(DEFAULT_CONFIG, f, indent=4)
-    print(f"Default config saved to {config_file}")
+def save_autoclicker_data(data: Dict[str, Any], filepath: str) -> bool:
+    """Persist autoclicker settings to a JSON file."""
+    try:
+        with open(filepath, 'w') as f:
+            json.dump(data, f, indent=4)
+        return True
+    except (OSError, TypeError):
+        return False
 
-# Usage example for testing
-if __name__ == "__main__":
-    # Load config
-    config = load_config()
-    print("Loaded config:", config)
-    
-    # Optionally save defaults if no file exists
-    if not os.path.exists("config.json"):
-        save_default_config()
+def load_autoclicker_data(filepath: str) -> Optional[Dict[str, Any]]:
+    """Retrieve autoclicker data from JSON file."""
+    if not os.path.isfile(filepath):
+        return None
+    try:
+        with open(filepath, 'r') as f:
+            data = json.load(f)
+        if not isinstance(data, dict):
+            return None
+        return data
+    except (OSError, json.JSONDecodeError):
+        return None
+
+def filter_valid_positions(positions: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
+    """Remove invalid click positions from list."""
+    return [pos for pos in positions if is_valid_position(*pos)]
+
+def update_click_data(existing: Dict[str, Any], updates: Dict[str, Any]) -> Dict[str, Any]:
+    """Merge new data into existing autoclicker config."""
+    merged = existing.copy()
+    merged.update(updates)
+    return merged
+
+def serialize_click_sequence(sequence: List[Dict[str, Any]]) -> str:
+    """Convert click sequence to JSON string."""
+    return json.dumps(sequence)
