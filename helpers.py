@@ -1,47 +1,51 @@
-import json
-import os
-from typing import Any, Dict, List, Optional, Tuple
+import logging
+import time
+from typing import Callable, Any, Optional
 
-def is_valid_interval(interval: float) -> bool:
-    """Validate click interval is between 1ms and 60s."""
-    return 0.001 <= interval <= 60.0
+logger = logging.getLogger('auto-clicker-29')
 
-def is_valid_position(x: float, y: float) -> bool:
-    """Check if screen position is reasonable."""
-    return 0 <= x <= 1920 and 0 <= y <= 1080
-
-def save_autoclicker_data(data: Dict[str, Any], filepath: str) -> bool:
-    """Persist autoclicker settings to a JSON file."""
+def safe_execute(func: Callable, *args: Any, default: Any = None, **kwargs: Any) -> Any:
+    """
+    Executes a function with error handling for click operations.
+    """
     try:
-        with open(filepath, 'w') as f:
-            json.dump(data, f, indent=4)
-        return True
-    except (OSError, TypeError):
-        return False
+        return func(*args, **kwargs)
+    except (PermissionError, OSError) as e:
+        logger.error(f"System resource access failed: {e}")
+        return default
+    except Exception as e:
+        logger.critical(f"Unexpected error during execution: {e}")
+        return default
 
-def load_autoclicker_data(filepath: str) -> Optional[Dict[str, Any]]:
-    """Retrieve autoclicker data from JSON file."""
-    if not os.path.isfile(filepath):
-        return None
-    try:
-        with open(filepath, 'r') as f:
-            data = json.load(f)
-        if not isinstance(data, dict):
-            return None
-        return data
-    except (OSError, json.JSONDecodeError):
-        return None
+def validate_interval(interval: float) -> float:
+    """
+    Ensures click interval is within safe operating bounds.
+    """
+    MIN_INTERVAL = 0.01
+    MAX_INTERVAL = 60.0
+    
+    if not isinstance(interval, (int, float)):
+        raise ValueError("Interval must be a numeric value.")
+        
+    if interval < MIN_INTERVAL:
+        logger.warning(f"Interval {interval} too low, clamping to {MIN_INTERVAL}")
+        return MIN_INTERVAL
+    
+    if interval > MAX_INTERVAL:
+        logger.warning(f"Interval {interval} too high, capping at {MAX_INTERVAL}")
+        return MAX_INTERVAL
+        
+    return float(interval)
 
-def filter_valid_positions(positions: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
-    """Remove invalid click positions from list."""
-    return [pos for pos in positions if is_valid_position(*pos)]
-
-def update_click_data(existing: Dict[str, Any], updates: Dict[str, Any]) -> Dict[str, Any]:
-    """Merge new data into existing autoclicker config."""
-    merged = existing.copy()
-    merged.update(updates)
-    return merged
-
-def serialize_click_sequence(sequence: List[Dict[str, Any]]) -> str:
-    """Convert click sequence to JSON string."""
-    return json.dumps(sequence)
+def retry_operation(func: Callable, retries: int = 3, delay: float = 0.5) -> Optional[Any]:
+    """
+    Simple retry mechanism for flaky mouse driver interactions.
+    """
+    for i in range(retries):
+        try:
+            return func()
+        except Exception:
+            if i == retries - 1:
+                raise
+            time.sleep(delay)
+    return None
