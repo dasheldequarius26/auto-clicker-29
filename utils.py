@@ -1,35 +1,27 @@
 import time
-import functools
-import logging
+import pyautogui
+from typing import Tuple
 
-logger = logging.getLogger(__name__)
+def get_mouse_position() -> Tuple[int, int]:
+    """Return current coordinates of the mouse cursor."""
+    return pyautogui.position()
 
-def retry_network_op(retries=3, delay=2, exceptions=(ConnectionError, TimeoutError)):
-    """Decorator for retrying network operations with exponential backoff."""
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            last_exception = None
-            current_delay = delay
-            
-            for attempt in range(retries):
-                try:
-                    return func(*args, **kwargs)
-                except exceptions as e:
-                    last_exception = e
-                    logger.warning(f"Attempt {attempt + 1} failed: {e}. Retrying in {current_delay}s...")
-                    time.sleep(current_delay)
-                    current_delay *= 2
-            
-            logger.error(f"Operation failed after {retries} attempts.")
-            raise last_exception
-        return wrapper
-    return decorator
+def perform_click(x: int, y: int, button: str = 'left', clicks: int = 1) -> None:
+    """Execute a mouse click at specified coordinates."""
+    pyautogui.click(x=x, y=y, button=button, clicks=clicks)
 
-@retry_network_op(retries=3, delay=1)
-def safe_fetch(url):
-    """Example usage for network-based config fetching."""
-    import requests
-    response = requests.get(url, timeout=5)
-    response.raise_for_status()
-    return response.json()
+def sleep_interval(seconds: float) -> None:
+    """Pause execution for the specified duration."""
+    time.sleep(seconds)
+
+def safe_move(x: int, y: int) -> None:
+    """Move mouse cursor with fail-safe boundaries."""
+    try:
+        pyautogui.moveTo(x, y, duration=0.1)
+    except pyautogui.FailSafeException:
+        pass
+
+def validate_coordinates(x: int, y: int) -> bool:
+    """Verify coordinates fall within screen bounds."""
+    screen_width, screen_height = pyautogui.size()
+    return 0 <= x <= screen_width and 0 <= y <= screen_height
