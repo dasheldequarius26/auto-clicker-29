@@ -1,51 +1,39 @@
-import logging
 import time
-from typing import Callable, Any, Optional
+import logging
+import sys
 
+# Standard logger initialization for the application
 logger = logging.getLogger('auto-clicker-29')
 
-def safe_execute(func: Callable, *args: Any, default: Any = None, **kwargs: Any) -> Any:
-    """
-    Executes a function with error handling for click operations.
-    """
-    try:
-        return func(*args, **kwargs)
-    except (PermissionError, OSError) as e:
-        logger.error(f"System resource access failed: {e}")
-        return default
-    except Exception as e:
-        logger.critical(f"Unexpected error during execution: {e}")
-        return default
+def setup_logging(level=logging.INFO):
+    """Configures basic logging format and level."""
+    logging.basicConfig(
+        level=level,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[logging.StreamHandler(sys.stdout)]
+    )
 
-def validate_interval(interval: float) -> float:
-    """
-    Ensures click interval is within safe operating bounds.
-    """
-    MIN_INTERVAL = 0.01
-    MAX_INTERVAL = 60.0
-    
-    if not isinstance(interval, (int, float)):
-        raise ValueError("Interval must be a numeric value.")
-        
-    if interval < MIN_INTERVAL:
-        logger.warning(f"Interval {interval} too low, clamping to {MIN_INTERVAL}")
-        return MIN_INTERVAL
-    
-    if interval > MAX_INTERVAL:
-        logger.warning(f"Interval {interval} too high, capping at {MAX_INTERVAL}")
-        return MAX_INTERVAL
-        
-    return float(interval)
+def format_interval(seconds: float) -> str:
+    """Converts seconds into human-readable string."""
+    if seconds < 1:
+        return f"{seconds * 1000:.0f}ms"
+    return f"{seconds:.2f}s"
 
-def retry_operation(func: Callable, retries: int = 3, delay: float = 0.5) -> Optional[Any]:
-    """
-    Simple retry mechanism for flaky mouse driver interactions.
-    """
-    for i in range(retries):
-        try:
-            return func()
-        except Exception:
-            if i == retries - 1:
-                raise
-            time.sleep(delay)
-    return None
+def get_timestamp() -> str:
+    """Returns ISO formatted current timestamp."""
+    return time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+
+class ClickerHelper:
+    """Utility methods for click operations management."""
+    
+    @staticmethod
+    def validate_interval(interval: float) -> float:
+        """Ensures click interval remains within safety bounds."""
+        MIN_INTERVAL = 0.01
+        return max(MIN_INTERVAL, interval)
+
+    @staticmethod
+    def delay_execution(seconds: float) -> None:
+        """Helper to introduce non-blocking pauses."""
+        if seconds > 0:
+            time.sleep(seconds)
