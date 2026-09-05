@@ -1,40 +1,40 @@
+import logging
+import pyautogui
 import time
 
-def validate_input(x, y, delay):
-    # Validate click coordinates and delay
-    if not isinstance(x, int) or not isinstance(y, int):
-        print("Invalid coordinates: must be integers")
-        return False
-    if x < 0 or y < 0 or x > 1920 or y > 1080:
-        print("Invalid coordinates: out of bounds")
-        return False
-    if not isinstance(delay, (int, float)) or delay < 0.1:
-        print("Invalid delay: must be at least 0.1 seconds")
-        return False
-    return True
+logger = logging.getLogger('auto-clicker-29')
 
-def perform_click(x, y):
-    # Simulate mouse click
-    print(f"Clicking at position ({x}, {y})")
-    time.sleep(0.05)
+def execute_click(x: int, y: int, interval: float) -> bool:
+    """Performs a mouse click with input validation and safety checks."""
+    try:
+        if not (isinstance(x, int) and isinstance(y, int)):
+            raise ValueError(f"Invalid coordinates: {x}, {y}")
+        
+        if interval < 0:
+            logger.error("Negative interval detected, resetting to 0.1")
+            interval = 0.1
 
-def main_processing_loop(clicks, click_delay):
-    # Main processing loop with input validation
-    iteration = 0
-    max_iterations = 5
-    while iteration < max_iterations:
-        for pos in clicks:
-            x, y = pos
-            if not validate_input(x, y, click_delay):
-                print("Validation failed, skipping click")
-                continue
-            perform_click(x, y)
-            time.sleep(click_delay)
-            iteration += 1
-            if iteration >= max_iterations:
-                break
-    print("Auto-clicker processing complete")
+        # Fail-safe: move mouse to top-left corner to abort if needed
+        pyautogui.FAILSAFE = True
+        
+        pyautogui.click(x=x, y=y)
+        time.sleep(interval)
+        return True
 
-if __name__ == "__main__":
-    sample_clicks = [(100, 200), (500, 600), (2500, 100)]
-    main_processing_loop(sample_clicks, 0.5)
+    except pyautogui.FailSafeException:
+        logger.critical("Fail-safe triggered: process aborted by user")
+        return False
+    except pyautogui.PyAutoGUIException as e:
+        logger.error(f"PyAutoGUI internal error: {e}")
+        return False
+    except Exception as e:
+        logger.error(f"Unexpected error during click: {e}")
+        return False
+
+def validate_screen_bounds(x: int, y: int) -> bool:
+    """Checks if coordinates fall within primary monitor bounds."""
+    try:
+        width, height = pyautogui.size()
+        return 0 <= x <= width and 0 <= y <= height
+    except Exception:
+        return False
