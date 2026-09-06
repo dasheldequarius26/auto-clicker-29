@@ -2,42 +2,31 @@ import logging
 import sys
 from typing import Optional
 
-# Configure logging for the auto-clicker application
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ]
-)
-
 class AutoClickerLogger:
-    def __init__(self, name: str = "auto-clicker-29") -> None:
+    """Handles application logging configuration and message formatting."""
+
+    def __init__(self, name: str = "auto-clicker-29", level: int = logging.INFO) -> None:
         self.logger = logging.getLogger(name)
+        self.logger.setLevel(level)
+        
+        handler = logging.StreamHandler(sys.stdout)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        handler.setFormatter(formatter)
+        
+        if not self.logger.handlers:
+            self.logger.addHandler(handler)
 
     def info(self, message: str) -> None:
-        try:
-            self.logger.info(message)
-        except Exception as err:
-            sys.stderr.write(f"Logging error: {err}\n")
+        """Logs informational messages to stdout."""
+        self.logger.info(message)
 
-    def error(self, message: str, exc: Optional[Exception] = None) -> None:
-        try:
-            if exc:
-                self.logger.error(f"{message}: {exc}", exc_info=True)
-            else:
-                self.logger.error(message)
-        except Exception as err:
-            sys.stderr.write(f"Critical logging failure: {err}\n")
+    def error(self, message: str, exc_info: bool = False) -> None:
+        """Logs error messages to stdout with optional traceback."""
+        self.logger.error(message, exc_info=exc_info)
 
     def warning(self, message: str) -> None:
-        try:
-            self.logger.warning(message)
-        except Exception as err:
-            sys.stderr.write(f"Logging warning failed: {err}\n")
+        """Logs warning messages for non-critical events."""
+        self.logger.warning(message)
 
-    def debug(self, message: str) -> None:
-        try:
-            self.logger.debug(message)
-        except Exception as err:
-            sys.stderr.write(f"Debug logging failed: {err}\n")
+# Global logger instance for auto-clicker-29
+logger = AutoClickerLogger()
