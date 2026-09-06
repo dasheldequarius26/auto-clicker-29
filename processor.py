@@ -1,40 +1,33 @@
-import logging
-import pyautogui
 import time
+import requests
+from functools import wraps
 
-logger = logging.getLogger('auto-clicker-29')
+MAX_RETRIES = 3
+RETRY_DELAY = 2
 
-def execute_click(x: int, y: int, interval: float) -> bool:
-    """Performs a mouse click with input validation and safety checks."""
-    try:
-        if not (isinstance(x, int) and isinstance(y, int)):
-            raise ValueError(f"Invalid coordinates: {x}, {y}")
-        
-        if interval < 0:
-            logger.error("Negative interval detected, resetting to 0.1")
-            interval = 0.1
+def retry_network_operation(func):
+    """Decorator to retry network requests on failure."""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        last_exception = None
+        for attempt in range(MAX_RETRIES):
+            try:
+                return func(*args, **kwargs)
+            except (requests.RequestException, ConnectionError) as e:
+                last_exception = e
+                time.sleep(RETRY_DELAY * (attempt + 1))
+        raise last_exception
+    return wrapper
 
-        # Fail-safe: move mouse to top-left corner to abort if needed
-        pyautogui.FAILSAFE = True
-        
-        pyautogui.click(x=x, y=y)
-        time.sleep(interval)
-        return True
+class NetworkProcessor:
+    """Handles remote configuration fetches for the autoclicker."""
+    def __init__(self, base_url):
+        self.base_url = base_url
 
-    except pyautogui.FailSafeException:
-        logger.critical("Fail-safe triggered: process aborted by user")
-        return False
-    except pyautogui.PyAutoGUIException as e:
-        logger.error(f"PyAutoGUI internal error: {e}")
-        return False
-    except Exception as e:
-        logger.error(f"Unexpected error during click: {e}")
-        return False
-
-def validate_screen_bounds(x: int, y: int) -> bool:
-    """Checks if coordinates fall within primary monitor bounds."""
-    try:
-        width, height = pyautogui.size()
-        return 0 <= x <= width and 0 <= y <= height
-    except Exception:
-        return False
+    @retry_network_operation
+    def fetch_remote_config(self, endpoint):
+        """Executes get request with built-in retry logic."""
+        url = f"{self.base_url}/{endpoint}"
+        response = requests.get(url, timeout=5)
+        response.raise_for_status()
+        return response.json()
