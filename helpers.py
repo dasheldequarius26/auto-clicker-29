@@ -1,30 +1,42 @@
 import time
-import functools
-import logging
+import threading
+from typing import Optional, Callable
 
-logger = logging.getLogger(__name__)
+def sleep_with_cancellation(duration: float, stop_event: threading.Event) -> bool:
+    """Wait for duration unless stop_event is set.
 
-def retry_network_operation(max_retries=3, delay=1.5, backoff=2):
-    """Decorator for retrying network operations with exponential backoff."""
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            current_delay = delay
-            for attempt in range(max_retries):
-                try:
-                    return func(*args, **kwargs)
-                except (ConnectionError, TimeoutError) as e:
-                    if attempt == max_retries - 1:
-                        logger.error(f"Final attempt {attempt + 1} failed: {e}")
-                        raise
-                    
-                    logger.warning(f"Attempt {attempt + 1} failed, retrying in {current_delay}s...")
-                    time.sleep(current_delay)
-                    current_delay *= backoff
-            return None
-        return wrapper
-    return decorator
+    Args:
+        duration: Time in seconds to sleep.
+        stop_event: Threading event to interrupt the wait.
 
-def is_valid_url(url):
-    """Simple check for network path validity."""
-    return url.startswith(('http://', 'https://'))
+    Returns:
+        bool: True if completed fully, False if interrupted.
+    """
+    return not stop_event.wait(timeout=duration)
+
+def format_click_interval(ms: int) -> str:
+    """Convert millisecond delay into a human-readable string.
+
+    Args:
+        ms: Delay in milliseconds.
+
+    Returns:
+        str: Formatted duration string.
+    """
+    seconds = ms / 1000.0
+    return f"{seconds:.2f} seconds"
+
+def get_safe_int(value: str, default: int = 0) -> int:
+    """Safely parse string input into an integer.
+
+    Args:
+        value: String to convert.
+        default: Fallback value if conversion fails.
+
+    Returns:
+        int: Parsed integer or default value.
+    """
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return default
