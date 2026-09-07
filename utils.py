@@ -1,27 +1,40 @@
 import time
-import pyautogui
-from typing import Tuple
+import logging
+from functools import wraps
+from typing import Callable, Any, Type, Tuple
 
-def get_mouse_position() -> Tuple[int, int]:
-    """Return current coordinates of the mouse cursor."""
-    return pyautogui.position()
+logger = logging.getLogger("autoclicker.utils")
 
-def perform_click(x: int, y: int, button: str = 'left', clicks: int = 1) -> None:
-    """Execute a mouse click at specified coordinates."""
-    pyautogui.click(x=x, y=y, button=button, clicks=clicks)
-
-def sleep_interval(seconds: float) -> None:
-    """Pause execution for the specified duration."""
-    time.sleep(seconds)
-
-def safe_move(x: int, y: int) -> None:
-    """Move mouse cursor with fail-safe boundaries."""
-    try:
-        pyautogui.moveTo(x, y, duration=0.1)
-    except pyautogui.FailSafeException:
-        pass
-
-def validate_coordinates(x: int, y: int) -> bool:
-    """Verify coordinates fall within screen bounds."""
-    screen_width, screen_height = pyautogui.size()
-    return 0 <= x <= screen_width and 0 <= y <= screen_height
+def retry(
+    exceptions: Tuple[Type[BaseException], ...] = (Exception,),
+    max_attempts: int = 3,
+    initial_delay: float = 1.0,
+    backoff_factor: float = 2.0
+) -> Callable:
+    """
+    Decorator that retries a function call if specific exceptions are raised.
+    Implements exponential backoff for handling intermittent network issues.
+    """
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        @wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            delay = initial_delay
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    if attempt == max_attempts:
+                        logger.error(
+                            f"Failed '{func.__name__}' after {max_attempts} attempts. Error: {e}"
+                        )
+                        raise e
+                    
+                    logger.warning(
+                        f"Attempt {attempt} failed for '{func.__name__}': {e}. "
+                        f"Retrying in {delay:.2f} seconds..."
+                    )
+                    time.sleep(delay)
+                    delay *= backoff_factor
+            return None
+        return wrapper
+    return decorator
