@@ -1,42 +1,50 @@
-import time
-import threading
-from typing import Optional, Callable
+import random
+import re
+from typing import Tuple
 
-def sleep_with_cancellation(duration: float, stop_event: threading.Event) -> bool:
-    """Wait for duration unless stop_event is set.
 
-    Args:
-        duration: Time in seconds to sleep.
-        stop_event: Threading event to interrupt the wait.
+def parse_interval(interval_str: str) -> float: 
+    """Parse a duration string (e.g., '100ms', '1.5s', '2m') into float seconds."""
+    match = re.match(r"^([\d.]+)\s*(ms|s|m|h)?$", interval_str.strip().lower())
+    if not match:
+        raise ValueError(f"Invalid interval format: {interval_str}")
 
-    Returns:
-        bool: True if completed fully, False if interrupted.
-    """
-    return not stop_event.wait(timeout=duration)
+    value, unit = match.groups()
+    val_float = float(value)
 
-def format_click_interval(ms: int) -> str:
-    """Convert millisecond delay into a human-readable string.
+    if unit == "ms":
+        return val_float / 1000.0
+    elif unit == "m":
+        return val_float * 60.0
+    elif unit == "h":
+        return val_float * 3600.0
+    else:
+        return val_float
 
-    Args:
-        ms: Delay in milliseconds.
 
-    Returns:
-        str: Formatted duration string.
-    """
-    seconds = ms / 1000.0
-    return f"{seconds:.2f} seconds"
+def calculate_jitter(base_value: float, jitter_percentage: float) -> float:
+    """Calculate a randomized value within a jitter range to humanize delays."""
+    if jitter_percentage <= 0:
+        return base_value
+    factor = random.uniform(-jitter_percentage, jitter_percentage) / 100.0
+    return max(0.0, base_value * (1.0 + factor))
 
-def get_safe_int(value: str, default: int = 0) -> int:
-    """Safely parse string input into an integer.
 
-    Args:
-        value: String to convert.
-        default: Fallback value if conversion fails.
+def apply_coordinate_drift(coords: Tuple[int, int], max_drift: int) -> Tuple[int, int]:
+    """Apply human-like drift to a click coordinate within a pixel boundary."""
+    if max_drift <= 0:
+        return coords
+    dx = random.randint(-max_drift, max_drift)
+    dy = random.randint(-max_drift, max_drift)
+    return (coords[0] + dx, coords[1] + dy)
 
-    Returns:
-        int: Parsed integer or default value.
-    """
+
+def parse_coordinates(coord_str: str) -> Tuple[int, int]:
+    """Parse coordinate string 'x, y' into an integer tuple."""
     try:
-        return int(value)
-    except (ValueError, TypeError):
-        return default
+        parts = coord_str.split(",")
+        if len(parts) != 2:
+            raise ValueError
+        return (int(parts[0].strip()), int(parts[1].strip()))
+    except ValueError:
+        raise ValueError(f"Invalid coordinate format '{coord_str}'. Expected 'x, y'")
