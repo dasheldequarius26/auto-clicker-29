@@ -1,33 +1,31 @@
 import time
-import requests
-from functools import wraps
+import pyautogui
+from typing import Dict, Any
 
-MAX_RETRIES = 3
-RETRY_DELAY = 2
+class ClickProcessor:
+    """Handles the execution of automated click sequences."""
 
-def retry_network_operation(func):
-    """Decorator to retry network requests on failure."""
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        last_exception = None
-        for attempt in range(MAX_RETRIES):
-            try:
-                return func(*args, **kwargs)
-            except (requests.RequestException, ConnectionError) as e:
-                last_exception = e
-                time.sleep(RETRY_DELAY * (attempt + 1))
-        raise last_exception
-    return wrapper
+    def __init__(self, settings: Dict[str, Any]) -> None:
+        """Initialize processor with configuration dictionary."""
+        self.interval: float = settings.get("interval", 0.1)
+        self.button: str = settings.get("button", "left")
 
-class NetworkProcessor:
-    """Handles remote configuration fetches for the autoclicker."""
-    def __init__(self, base_url):
-        self.base_url = base_url
+    def perform_click(self, x: int, y: int) -> None:
+        """Executes a single click at the specified screen coordinates."""
+        pyautogui.click(x=x, y=y, button=self.button)
 
-    @retry_network_operation
-    def fetch_remote_config(self, endpoint):
-        """Executes get request with built-in retry logic."""
-        url = f"{self.base_url}/{endpoint}"
-        response = requests.get(url, timeout=5)
-        response.raise_for_status()
-        return response.json()
+    def run_sequence(self, coordinates: list[tuple[int, int]]) -> None:
+        """
+        Iterates through coordinate list and performs clicks.
+        
+        Args:
+            coordinates: List of (x, y) tuples representing target locations.
+        """
+        for x, y in coordinates:
+            self.perform_click(x, y)
+            time.sleep(self.interval)
+
+    def validate_bounds(self, x: int, y: int) -> bool:
+        """Checks if coordinates are within primary screen boundaries."""
+        width, height = pyautogui.size()
+        return 0 <= x <= width and 0 <= y <= height
