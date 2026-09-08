@@ -1,39 +1,39 @@
 import json
 import os
+from typing import Any, Dict
 
 DEFAULT_CONFIG = {
-    "cps": 10,
-    "hotkey": "f6",
+    "interval": 0.1,
     "button": "left",
-    "hold_mode": False,
-    "sound_enabled": True
+    "hotkey": "f6",
+    "repeat": True
 }
 
-CONFIG_FILE = "config.json"
+class ConfigLoader:
+    """Handles loading and persistence of application settings."""
 
+    def __init__(self, filepath: str = "settings.json"):
+        self.filepath = filepath
+        self.settings = DEFAULT_CONFIG.copy()
+        self.load()
 
-def load_config() -> dict:
-    """Load configuration from disk, falling back to defaults if missing."""
-    config = DEFAULT_CONFIG.copy()
-    
-    if os.path.exists(CONFIG_FILE):
+    def load(self) -> None:
+        """Loads settings from file or creates default file if missing."""
+        if not os.path.exists(self.filepath):
+            self.save()
+            return
+
         try:
-            with open(CONFIG_FILE, "r") as f:
-                user_config = json.load(f)
-                # Update default values with user-provided settings
-                config.update(user_config)
+            with open(self.filepath, "r") as f:
+                loaded_data = json.load(f)
+                self.settings.update(loaded_data)
         except (json.JSONDecodeError, IOError):
-            # Fallback to defaults on file corruption or read error
-            pass
-            
-    return config
+            self.save()
 
+    def save(self) -> None:
+        """Persists current settings to disk."""
+        with open(self.filepath, "w") as f:
+            json.dump(self.settings, f, indent=4)
 
-def save_config(config: dict) -> None:
-    """Save current configuration dictionary to disk."""
-    try:
-        with open(CONFIG_FILE, "w") as f:
-            json.dump(config, f, indent=4)
-    except IOError:
-        # Fail silently if unable to write configuration file
-        pass
+    def get(self, key: str) -> Any:
+        return self.settings.get(key, DEFAULT_CONFIG.get(key))
