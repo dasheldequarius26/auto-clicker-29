@@ -1,33 +1,42 @@
+import random
 import time
-import pyautogui
-import logging
+from typing import Tuple, Optional
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger('auto-clicker-29')
 
-def perform_click(x: int, y: int, interval: float = 0.01) -> None:
-    """Execute a single mouse click at specified coordinates."""
-    try:
-        pyautogui.click(x, y)
-        time.sleep(interval)
-    except Exception as e:
-        logger.error(f"click failed at {x}, {y}: {e}")
+def cps_to_interval(cps: float) -> float:
+    """Convert clicks per second (CPS) to sleep interval in seconds."""
+    if cps <= 0:
+        raise ValueError("CPS must be greater than zero.")
+    return 1.0 / cps
 
-def move_and_click(x: int, y: int, duration: float = 0.2) -> None:
-    """Move mouse smoothly then perform a click."""
-    pyautogui.moveTo(x, y, duration=duration)
-    pyautogui.click()
 
-def get_mouse_position() -> tuple[int, int]:
-    """Capture current X and Y coordinates."""
-    return pyautogui.position()
+def apply_jitter(interval: float, max_jitter_pct: float = 0.1) -> float:
+    """Add subtle random variation to delay interval for humanized clicks."""
+    if max_jitter_pct <= 0:
+        return interval
+    variation = random.uniform(-max_jitter_pct, max_jitter_pct)
+    return max(0.001, interval * (1.0 + variation))
 
-def safe_exit(reason: str) -> None:
-    """Graceful shutdown sequence for the application."""
-    logger.info(f"shutting down: {reason}")
-    exit(0)
 
-def validate_coordinates(x: int, y: int) -> bool:
-    """Verify coordinates are within screen bounds."""
-    screen_width, screen_height = pyautogui.size()
-    return 0 <= x <= screen_width and 0 <= y <= screen_height
+def clamp_coordinates(
+    x: int, y: int, screen_bounds: Tuple[int, int, int, int]
+) -> Tuple[int, int]:
+    """Ensure click coordinates remain within the specified screen bounds."""
+    min_x, min_y, max_x, max_y = screen_bounds
+    clamped_x = max(min_x, min(x, max_x))
+    clamped_y = max(min_y, min(y, max_y))
+    return clamped_x, clamped_y
+
+
+def parse_duration_to_seconds(duration_str: str) -> float:
+    """Parse a human-readable duration string like '10s', '2m', '1h' to seconds."""
+    duration_str = duration_str.strip().lower()
+    if not duration_str:
+        return 0.0
+
+    unit = duration_str[-1]
+    if unit in ("s", "m", "h"):
+        val = float(duration_str[:-1])
+        multiplier = {"s": 1.0, "m": 60.0, "h": 3600.0}[unit]
+        return val * multiplier
+    return float(duration_str)
