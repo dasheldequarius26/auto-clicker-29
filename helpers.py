@@ -1,50 +1,33 @@
-import random
-import re
-from typing import Tuple
+import time
+import pyautogui
+import logging
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger('auto-clicker-29')
 
-def parse_interval(interval_str: str) -> float: 
-    """Parse a duration string (e.g., '100ms', '1.5s', '2m') into float seconds."""
-    match = re.match(r"^([\d.]+)\s*(ms|s|m|h)?$", interval_str.strip().lower())
-    if not match:
-        raise ValueError(f"Invalid interval format: {interval_str}")
-
-    value, unit = match.groups()
-    val_float = float(value)
-
-    if unit == "ms":
-        return val_float / 1000.0
-    elif unit == "m":
-        return val_float * 60.0
-    elif unit == "h":
-        return val_float * 3600.0
-    else:
-        return val_float
-
-
-def calculate_jitter(base_value: float, jitter_percentage: float) -> float:
-    """Calculate a randomized value within a jitter range to humanize delays."""
-    if jitter_percentage <= 0:
-        return base_value
-    factor = random.uniform(-jitter_percentage, jitter_percentage) / 100.0
-    return max(0.0, base_value * (1.0 + factor))
-
-
-def apply_coordinate_drift(coords: Tuple[int, int], max_drift: int) -> Tuple[int, int]:
-    """Apply human-like drift to a click coordinate within a pixel boundary."""
-    if max_drift <= 0:
-        return coords
-    dx = random.randint(-max_drift, max_drift)
-    dy = random.randint(-max_drift, max_drift)
-    return (coords[0] + dx, coords[1] + dy)
-
-
-def parse_coordinates(coord_str: str) -> Tuple[int, int]:
-    """Parse coordinate string 'x, y' into an integer tuple."""
+def perform_click(x: int, y: int, interval: float = 0.01) -> None:
+    """Execute a single mouse click at specified coordinates."""
     try:
-        parts = coord_str.split(",")
-        if len(parts) != 2:
-            raise ValueError
-        return (int(parts[0].strip()), int(parts[1].strip()))
-    except ValueError:
-        raise ValueError(f"Invalid coordinate format '{coord_str}'. Expected 'x, y'")
+        pyautogui.click(x, y)
+        time.sleep(interval)
+    except Exception as e:
+        logger.error(f"click failed at {x}, {y}: {e}")
+
+def move_and_click(x: int, y: int, duration: float = 0.2) -> None:
+    """Move mouse smoothly then perform a click."""
+    pyautogui.moveTo(x, y, duration=duration)
+    pyautogui.click()
+
+def get_mouse_position() -> tuple[int, int]:
+    """Capture current X and Y coordinates."""
+    return pyautogui.position()
+
+def safe_exit(reason: str) -> None:
+    """Graceful shutdown sequence for the application."""
+    logger.info(f"shutting down: {reason}")
+    exit(0)
+
+def validate_coordinates(x: int, y: int) -> bool:
+    """Verify coordinates are within screen bounds."""
+    screen_width, screen_height = pyautogui.size()
+    return 0 <= x <= screen_width and 0 <= y <= screen_height
