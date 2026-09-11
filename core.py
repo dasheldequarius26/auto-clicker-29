@@ -1,44 +1,30 @@
-import pyautogui
-import time
-import threading
+import json
+import os
+from typing import Dict, Any
 
-class AutoClicker:
-    """Core controller for automated mouse input."""
-    def __init__(self, interval=0.1):
-        self.interval = interval
-        self.running = False
-        self._thread = None
+CONFIG_PATH = "clicker_config.json"
 
-    def _click_loop(self):
-        """Executes clicks until stopped."""
-        while self.running:
-            pyautogui.click()
-            time.sleep(self.interval)
-
-    def start(self):
-        """Initializes and starts the clicker thread."""
-        if not self.running:
-            self.running = True
-            self._thread = threading.Thread(target=self._click_loop, daemon=True)
-            self._thread.start()
-
-    def stop(self):
-        """Signals the thread to terminate."""
-        self.running = False
-        if self._thread:
-            self._thread.join()
-
-    def set_interval(self, seconds):
-        """Updates the click delay duration."""
-        self.interval = max(0.01, seconds)
-
-if __name__ == "__main__":
-    clicker = AutoClicker(interval=0.5)
+def load_clicker_data(file_path: str = CONFIG_PATH) -> Dict[str, Any]:
+    """Reads and parses the autoclicker configuration file."""
+    if not os.path.exists(file_path):
+        return {"interval": 0.1, "button": "left", "repeats": 0}
+    
     try:
-        print("Starting auto-clicker (Ctrl+C to stop)...")
-        clicker.start()
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        clicker.stop()
-        print("Clicker stopped.")
+        with open(file_path, "r") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return {}
+
+def save_clicker_data(data: Dict[str, Any], file_path: str = CONFIG_PATH) -> bool:
+    """Persists autoclicker configuration to a local JSON file."""
+    try:
+        with open(file_path, "w") as f:
+            json.dump(data, f, indent=4)
+        return True
+    except IOError:
+        return False
+
+def validate_click_settings(data: Dict[str, Any]) -> bool:
+    """Ensures click interval is within acceptable safe bounds."""
+    interval = data.get("interval", 0.1)
+    return isinstance(interval, (int, float)) and interval >= 0.01
