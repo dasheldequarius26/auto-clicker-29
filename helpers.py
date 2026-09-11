@@ -1,42 +1,41 @@
-import random
-import time
-from typing import Tuple, Optional
+import logging
+from typing import Callable, Any, Optional
 
+logger = logging.getLogger('auto-clicker-29')
 
-def cps_to_interval(cps: float) -> float:
-    """Convert clicks per second (CPS) to sleep interval in seconds."""
-    if cps <= 0:
-        raise ValueError("CPS must be greater than zero.")
-    return 1.0 / cps
+def safe_execute(func: Callable, *args: Any, **kwargs: Any) -> Optional[Any]:
+    """
+    Wraps function calls with basic error handling to prevent 
+    the autoclicker from crashing during execution.
+    """
+    try:
+        return func(*args, **kwargs)
+    except PermissionError as e:
+        logger.error(f"Insufficient privileges for {func.__name__}: {e}")
+    except ValueError as e:
+        logger.error(f"Invalid input arguments for {func.__name__}: {e}")
+    except Exception as e:
+        logger.exception(f"Unexpected error in {func.__name__}: {e}")
+    return None
 
+def validate_coordinate(x: int, y: int, screen_width: int, screen_height: int) -> bool:
+    """
+    Ensures click coordinates remain within physical screen bounds.
+    """
+    if not (0 <= x <= screen_width and 0 <= y <= screen_height):
+        logger.warning(f"Coordinate ({x}, {y}) out of bounds ({screen_width}x{screen_height})")
+        return False
+    return True
 
-def apply_jitter(interval: float, max_jitter_pct: float = 0.1) -> float:
-    """Add subtle random variation to delay interval for humanized clicks."""
-    if max_jitter_pct <= 0:
-        return interval
-    variation = random.uniform(-max_jitter_pct, max_jitter_pct)
-    return max(0.001, interval * (1.0 + variation))
-
-
-def clamp_coordinates(
-    x: int, y: int, screen_bounds: Tuple[int, int, int, int]
-) -> Tuple[int, int]:
-    """Ensure click coordinates remain within the specified screen bounds."""
-    min_x, min_y, max_x, max_y = screen_bounds
-    clamped_x = max(min_x, min(x, max_x))
-    clamped_y = max(min_y, min(y, max_y))
-    return clamped_x, clamped_y
-
-
-def parse_duration_to_seconds(duration_str: str) -> float:
-    """Parse a human-readable duration string like '10s', '2m', '1h' to seconds."""
-    duration_str = duration_str.strip().lower()
-    if not duration_str:
-        return 0.0
-
-    unit = duration_str[-1]
-    if unit in ("s", "m", "h"):
-        val = float(duration_str[:-1])
-        multiplier = {"s": 1.0, "m": 60.0, "h": 3600.0}[unit]
-        return val * multiplier
-    return float(duration_str)
+def retry_operation(func: Callable, retries: int = 3) -> Any:
+    """
+    Attempts an operation multiple times before giving up.
+    """
+    for i in range(retries):
+        try:
+            return func()
+        except Exception as e:
+            if i == retries - 1:
+                raise e
+            logger.debug(f"Retrying {func.__name__} attempt {i+1}")
+    return None
